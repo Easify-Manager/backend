@@ -1,9 +1,18 @@
 package uz.easify.backend.domain.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 /**
  * ProductImage entity for storing product image information.
@@ -31,6 +40,10 @@ public class ProductImage extends BaseEntity {
     @Size(max = 500, message = "File path cannot exceed 500 characters")
     @Column(name = "file_path", nullable = false, length = 500)
     private String filePath;
+
+    @Size(max = 500, message = "File URL cannot exceed 500 characters")
+    @Column(name = "file_url", length = 500)
+    private String fileUrl;
 
     @Size(max = 100, message = "Content type cannot exceed 100 characters")
     @Column(name = "content_type", length = 100)

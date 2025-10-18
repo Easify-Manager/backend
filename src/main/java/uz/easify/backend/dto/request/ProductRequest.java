@@ -1,12 +1,16 @@
 package uz.easify.backend.dto.request;
 
-import jakarta.validation.constraints.*;
+import java.math.BigDecimal;
+
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.math.BigDecimal;
 
 /**
  * Request DTO for creating and updating products.
@@ -21,10 +25,10 @@ public class ProductRequest {
     @Size(min = 2, max = 200, message = "Product name must be between 2 and 200 characters")
     private String name;
 
+    @NotBlank(message = "Product description is required")
     @Size(max = 2000, message = "Description cannot exceed 2000 characters")
     private String description;
 
-    @NotBlank(message = "SKU is required")
     @Size(max = 50, message = "SKU cannot exceed 50 characters")
     private String sku;
 
@@ -38,6 +42,7 @@ public class ProductRequest {
     @DecimalMin(value = "0.0", message = "Cost must be non-negative")
     private BigDecimal cost;
 
+    @NotNull(message = "Category ID is required")
     private Long categoryId;
 
     private BigDecimal weight;
@@ -53,6 +58,7 @@ public class ProductRequest {
     private String tags;
 
     // Inventory fields
+    @NotNull(message = "Quantity is required")
     @Min(value = 0, message = "Quantity cannot be negative")
     private Integer quantity;
 
