@@ -1,5 +1,6 @@
 package uz.easify.backend.service;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
@@ -55,9 +56,9 @@ public interface ProductService {
     List<ProductResponse> getFeaturedProducts();
 
     /**
-     * Search products by name or description.
+     * Search products by name or description with optional price filters.
      */
-    Page<ProductResponse> searchProducts(String searchTerm, Pageable pageable);
+    Page<ProductResponse> searchProducts(String searchTerm, BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable);
 
     /**
      * Get products with low stock.

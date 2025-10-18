@@ -3,6 +3,7 @@ package uz.easify.backend.service.impl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,8 +18,9 @@ import uz.easify.backend.service.FileStorageService;
 import uz.easify.backend.service.ProductService;
 import uz.easify.backend.service.mapper.ProductMapper;
 
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
+import java.math.BigDecimal;
 
 /**
  * Implementation of ProductService with comprehensive product management logic.
@@ -35,6 +37,7 @@ public class ProductServiceImpl implements ProductService {
     private final ProductImageRepository productImageRepository;
     private final FileStorageService fileStorageService;
     private final ProductMapper productMapper;
+    private final ProductSearchService productSearchService;
 
     @Override
     public ProductResponse createProduct(ProductRequest request) {
@@ -79,9 +82,16 @@ public class ProductServiceImpl implements ProductService {
                 .trackInventory(request.getTrackInventory() != null ? request.getTrackInventory() : true)
                 .allowBackorder(request.getAllowBackorder() != null ? request.getAllowBackorder() : false)
                 .build();
-        
+
         inventory = inventoryRepository.save(inventory);
         product.setInventory(inventory);
+
+        // Index product in Lucene
+        try {
+            productSearchService.indexProduct(product);
+        } catch (Exception e) {
+            log.warn("Failed to index product id={} : {}", product.getId(), e.getMessage());
+        }
 
         log.info("Product created successfully with ID: {}", product.getId());
         return productMapper.toResponse(product);
@@ -134,8 +144,16 @@ public class ProductServiceImpl implements ProductService {
         }
 
         product = productRepository.save(product);
+
+        // Re-index product
+        try {
+            productSearchService.indexProduct(product);
+        } catch (Exception e) {
+            log.warn("Failed to re-index product id={} : {}", product.getId(), e.getMessage());
+        }
+
         log.info("Product updated successfully with ID: {}", id);
-        
+
         return productMapper.toResponse(product);
     }
 
@@ -195,9 +213,40 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<ProductResponse> searchProducts(String searchTerm, Pageable pageable) {
-        return productRepository.searchProducts(searchTerm, pageable)
-                .map(productMapper::toResponse);
+    public Page<ProductResponse> searchProducts(String searchTerm, java.math.BigDecimal minPrice, java.math.BigDecimal maxPrice, Pageable pageable) {
+        int page = pageable.getPageNumber();
+        int size = pageable.getPageSize();
+        int offset = page * size;
+
+        // Try Lucene-based search first (may be a stub if Lucene deps are not available)
+        ProductSearchService.SearchResult result = productSearchService.search(
+                searchTerm,
+                minPrice != null ? minPrice.doubleValue() : null,
+                maxPrice != null ? maxPrice.doubleValue() : null,
+                offset,
+                size
+        );
+
+        if (result != null && !result.ids().isEmpty()) {
+            // Fetch products by ids and preserve order
+            List<Long> ids = result.ids();
+            List<Product> products = productRepository.findAllById(ids);
+            // Map id -> product
+            Map<Long, Product> map = products.stream().collect(Collectors.toMap(Product::getId, p -> p));
+            List<ProductResponse> responses = ids.stream()
+                    .map(map::get)
+                    .filter(Objects::nonNull)
+                    .map(productMapper::toResponse)
+                    .collect(Collectors.toList());
+
+            return new PageImpl<>(responses, pageable, result.totalHits());
+        }
+
+        // Fallback to database LIKE search with price filtering
+        Page<Product> dbResults = productRepository.searchProductsWithPrice(
+                searchTerm, minPrice, maxPrice, pageable
+        );
+        return dbResults.map(productMapper::toResponse);
     }
 
     @Override
@@ -284,6 +333,13 @@ public class ProductServiceImpl implements ProductService {
         product.setDeleted(true);
         product.setActive(false);
         productRepository.save(product);
+
+        // Update index
+        try {
+            productSearchService.indexProduct(product);
+        } catch (Exception e) {
+            log.warn("Failed to update index for deleted product id={} : {}", id, e.getMessage());
+        }
 
         log.info("Product soft deleted successfully with ID: {}", id);
     }

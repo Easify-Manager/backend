@@ -2,6 +2,9 @@ package uz.easify.backend.controller;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import uz.easify.backend.dto.response.ApiResponse;
@@ -9,6 +12,7 @@ import uz.easify.backend.dto.response.InventoryResponse;
 import uz.easify.backend.dto.response.ProductResponse;
 import uz.easify.backend.service.ProductService;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -60,10 +64,14 @@ public class AgentDataController {
      * Use this when the AI needs to find products based on customer queries.
      */
     @GetMapping("/products/search")
-    public ResponseEntity<ApiResponse<List<ProductResponse>>> searchProducts(@RequestParam String query) {
-        log.info("AI Agent request: Search products with query: {}", query);
-        List<ProductResponse> products = productService.searchProducts(query, null).getContent();
-        return ResponseEntity.ok(ApiResponse.success(products));
+    public ResponseEntity<ApiResponse<List<ProductResponse>>> searchProducts(
+            @RequestParam String query,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @PageableDefault(size = 20) Pageable pageable) {
+        log.info("AI Agent request: Search products with query: {} (minPrice={}, maxPrice={})", query, minPrice, maxPrice);
+        Page<ProductResponse> page = productService.searchProducts(query, minPrice, maxPrice, pageable);
+        return ResponseEntity.ok(ApiResponse.success(page.getContent()));
     }
 
     /**

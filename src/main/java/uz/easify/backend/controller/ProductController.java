@@ -17,6 +17,7 @@ import uz.easify.backend.dto.response.ApiResponse;
 import uz.easify.backend.dto.response.ProductResponse;
 import uz.easify.backend.service.ProductService;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -123,9 +124,11 @@ public class ProductController {
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<Page<ProductResponse>>> searchProducts(
             @RequestParam String query,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
             @PageableDefault(size = 20) Pageable pageable) {
-        log.info("REST request to search products with query: {}", query);
-        Page<ProductResponse> response = productService.searchProducts(query, pageable);
+        log.info("REST request to search products with query: {} (minPrice={}, maxPrice={})", query, minPrice, maxPrice);
+        Page<ProductResponse> response = productService.searchProducts(query, minPrice, maxPrice, pageable);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
